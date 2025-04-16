@@ -1,5 +1,6 @@
 package cn.medmi.irenwei;
 
+import android.app.Activity;
 import android.app.Application;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -7,6 +8,7 @@ import android.util.Log;
 import android.widget.Toast;
 import de.robv.android.xposed.*;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -39,79 +41,86 @@ public class Hooker implements IXposedHookLoadPackage {
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
 
 
-
         XposedHelpers.findAndHookMethod(Application.class, "attach", Context.class, new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        super.afterHookedMethod(param);
-                        Context mContext = (Context) param.args[0];//拿到系统传入的原始context
-                        ClassLoader classLoader = mContext.getClassLoader();
-                        try {
-                            XposedHelpers.findAndHookMethod(target_className_fragment, classLoader, "copyContent", new XC_MethodReplacement() {
-                                @Override
-                                protected Object replaceHookedMethod(MethodHookParam methodHookParam) throws Throwable {
-                                    Class<?> Class_ReaderFragment = methodHookParam.thisObject.getClass();
-                                    try {
-                                        Method method = Class_ReaderFragment.getMethod("getActivity");
-                                        method.setAccessible(true);
-                                        Context fragmentAvtivitycontext = (Context) method.invoke(methodHookParam.thisObject);
-                                        ClipboardManager clipboardManager = (ClipboardManager) fragmentAvtivitycontext.getSystemService(Context.CLIPBOARD_SERVICE);
-                                        Field selectionText = Class_ReaderFragment.getDeclaredField("selectionText");
-                                        selectionText.setAccessible(true);
-                                        clipboardManager.setText(selectionText.get(methodHookParam.thisObject).toString());
-                                        Toast.makeText(fragmentAvtivitycontext, "复制成功！", Toast.LENGTH_SHORT).show();
-                                    } catch (IllegalAccessException e) {
-                                        Log.e(TAG, "replaceHookedMethod: " + e.getMessage());
-                                    } catch (IllegalArgumentException e) {
-                                        Log.e(TAG, "replaceHookedMethod: " + e.getMessage());
-                                    }
-                                    return null;
-                                }
-                            });
-                        } catch (Exception e) {
-                            Log.i("Hooker", "没有找到类：com.ebooks.reader.ui.fragment.ReaderFragment", e);
-                            return;
-                        }
-                        try {
-                            XposedHelpers.findAndHookMethod(target_className_DoHomeWorkSubjectActivity, classLoader, "setQiePingVis", boolean.class, new XC_MethodReplacement() {
-                                @Override
-                                protected Object replaceHookedMethod(MethodHookParam methodHookParam) throws Throwable {
-                                    //XposedBridge.log(stackTrace());
-                                    return null;
-                                }
-                            });
-                        } catch (Exception e) {
-                            Log.i("Hooker", "没有找到类：com.ebooks.reader.ui.fragment.ReaderFragment", e);
-                            return;
-                        }
-                        try {
-                            XposedHelpers.findAndHookMethod(target_className_ExamRespondActivity, classLoader, "setQiePingVis", boolean.class, new XC_MethodReplacement() {
-                                @Override
-                                protected Object replaceHookedMethod(MethodHookParam methodHookParam) throws Throwable {
-                                    //XposedBridge.log(stackTrace());
-                                    return null;
-                                }
-                            });
-                        } catch (Exception e) {
-                            Log.i("Hooker", "没有找到类：com.ebooks.reader.ui.fragment.ReaderFragment", e);
-                            return;
-                        }
-                        try {
-                            XposedHelpers.findAndHookMethod(target_className_IdentityVerifyActivity, classLoader, "setQiePingVis", boolean.class, new XC_MethodReplacement() {
-                                @Override
-                                protected Object replaceHookedMethod(MethodHookParam methodHookParam) throws Throwable {
-                                    //XposedBridge.log(stackTrace());
-                                    return null;
-                                }
-                            });
-                        } catch (Exception e) {
-                            Log.i("Hooker", "没有找到类：com.ebooks.reader.ui.fragment.ReaderFragment", e);
-                            return;
-                        }
-
-                    }
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                super.afterHookedMethod(param);
+                Context mContext = (Context) param.args[0];//拿到系统传入的原始context
+                ClassLoader classLoader = mContext.getClassLoader();
+                try {
+                    dohook(classLoader);
+                } catch (Exception e) {
+                    Log.i("Hooker", "hook错误: ", e);
+                    return;
+                }
+            }
         });
 
 
     }
+
+    private void dohook(ClassLoader classLoader) {
+        XposedHelpers.findAndHookMethod(target_className_fragment, classLoader, "copyContent", new XC_MethodReplacement() {
+            @Override
+            protected Object replaceHookedMethod(MethodHookParam methodHookParam) throws Throwable {
+                Class<?> Class_ReaderFragment = methodHookParam.thisObject.getClass();
+                try {
+                    Method method = Class_ReaderFragment.getMethod("getActivity");
+                    method.setAccessible(true);
+                    Context fragmentAvtivitycontext = (Context) method.invoke(methodHookParam.thisObject);
+                    ClipboardManager clipboardManager = (ClipboardManager) fragmentAvtivitycontext.getSystemService(Context.CLIPBOARD_SERVICE);
+                    Field selectionText = Class_ReaderFragment.getDeclaredField("selectionText");
+                    selectionText.setAccessible(true);
+                    clipboardManager.setText(selectionText.get(methodHookParam.thisObject).toString());
+                    Toast.makeText(fragmentAvtivitycontext, "复制成功！", Toast.LENGTH_SHORT).show();
+                } catch (IllegalAccessException e) {
+                    Log.e(TAG, "replaceHookedMethod: " + e.getMessage());
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "replaceHookedMethod: " + e.getMessage());
+                }
+                return null;
+            }
+        });
+
+
+        XposedHelpers.findAndHookMethod(target_className_DoHomeWorkSubjectActivity, classLoader, "setQiePingVis", boolean.class, new XC_MethodReplacement() {
+            @Override
+            protected Object replaceHookedMethod(MethodHookParam methodHookParam) throws Throwable {
+                //XposedBridge.log(stackTrace());
+                return null;
+            }
+        });
+
+        XposedHelpers.findAndHookMethod(target_className_ExamRespondActivity, classLoader, "setQiePingVis", boolean.class, new XC_MethodReplacement() {
+            @Override
+            protected Object replaceHookedMethod(MethodHookParam methodHookParam) throws Throwable {
+                //XposedBridge.log(stackTrace());
+                return null;
+            }
+        });
+
+
+        XposedHelpers.findAndHookMethod(target_className_IdentityVerifyActivity, classLoader, "setQiePingVis", boolean.class, new XC_MethodReplacement() {
+            @Override
+            protected Object replaceHookedMethod(MethodHookParam methodHookParam) throws Throwable {
+                //XposedBridge.log(stackTrace());
+                return null;
+            }
+        });
+
+        XposedHelpers.findAndHookMethod("com.pmph.main.ad.AdActivity", classLoader, "onCreate", "android.os.Bundle", new XC_MethodHook() {
+
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                super.afterHookedMethod(param);
+                Log.i(TAG, "afterHookedMethod: " + param.thisObject.getClass().getName());
+                Activity activity = (Activity) param.thisObject;
+                activity.finish();
+            }
+        });
+
+
+    }
+
+
 }
