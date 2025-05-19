@@ -13,7 +13,7 @@
         <!-- 模块的简介（在框架中显示） -->
         <meta-data
                 android:name="xposeddescription"
-                android:value="解除一些限制: 检测切屏, 复制文本20字符限制" />
+                android:value="解除一些限制: 检测切屏, 复制文本20字符限制,主页广告,答题页面长按可复制全部试题到剪贴板" />
         <!-- 模块最低支持的Api版本 一般填54即可 -->
         <meta-data
                 android:name="xposedminversion"
