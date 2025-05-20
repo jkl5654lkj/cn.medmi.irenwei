@@ -9,7 +9,7 @@ import android.content.Context;
 import android.os.IBinder;
 import android.util.ArrayMap;
 import android.util.Log;
-
+import cn.medmi.hookutils.M;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
@@ -19,7 +19,6 @@ import com.alibaba.fastjson2.JSONObject;
 import de.robv.android.xposed.*;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 import org.jetbrains.annotations.NotNull;
-
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.Serializable;
@@ -40,39 +39,10 @@ public class Hooker implements IXposedHookLoadPackage {
     final private String target_className_DoHomeWorkSubjectActivity = "com.leimingtech.exam_android.activity.DoHomeWorkSubjectActivity";
     final private String target_className_ExamRespondActivity = "com.leimingtech.exam_android.activity.ExamRespondActivity";
     final private String target_className_IdentityVerifyActivity = "com.leimingtech.exam_android.activity.IdentityVerifyActivity";
-
-    public String stackTrace() {
-        // 获取当前调用堆栈
-        Throwable stackTrace = new Throwable();
-        StackTraceElement[] elements = stackTrace.getStackTrace();
-
-        // 格式化堆栈信息
-        StringBuilder sb = new StringBuilder("调用堆栈：\n");
-        for (StackTraceElement element : elements) {
-            sb.append("  at ").append(element.getClassName()).append(".").append(element.getMethodName()).append("(").append(element.getFileName()).append(":").append(element.getLineNumber()).append(")\n");
-        }
-        return sb.toString();
-    }
-
+    static boolean done = false;
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
-        XposedHelpers.findAndHookMethod(Application.class, "attach", Context.class, new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                super.afterHookedMethod(param);
-                Context mContext = (Context) param.args[0];//拿到系统传入的原始context
-                ClassLoader classLoader = mContext.getClassLoader();
-                try {
-                    dohook(classLoader);
-
-                } catch (Exception e) {
-                    Log.i("Hooker", "hook错误: ", e);
-                    return;
-                }
-            }
-        });
-
-
+        M.onAttach(this::dohook);
     }
 
     private void dohook(ClassLoader classLoader) {
@@ -143,7 +113,7 @@ public class Hooker implements IXposedHookLoadPackage {
                 //检测长按手势
                 MotionEvent action = (MotionEvent) param.args[0];
                 //这个才是重点关注对象
-                if (param.thisObject.getClass().getName().equals("com.leimingtech.exam_android.view.ExamRelativeLayout")){
+                if (param.thisObject.getClass().getName().equals("com.leimingtech.exam_android.view.ExamRelativeLayout")||param.thisObject.getClass().getName().equals("android.widget.RelativeLayout")) {
                     doOnce(classLoader,param, action);
                 }
             }
@@ -206,63 +176,107 @@ public class Hooker implements IXposedHookLoadPackage {
                         Field mContext = Class.forName("android.view.View").getDeclaredField("mContext");
                         mContext.setAccessible(true);
                         Context context = (Context) mContext.get(param.thisObject);
-                        Toast.makeText(context, "已复制全部题目到剪贴板", Toast.LENGTH_SHORT).show();
-                        Log.d("Hooker", "beforeHookedMethod: 复制全部题目");
                         Class<?> SubjectService = classLoader.loadClass("com.leimingtech.exam_android.baseadapter.SubjectService");
                         Class<?> DoHomeWorkSubjectActivity = classLoader.loadClass("com.leimingtech.exam_android.activity.DoHomeWorkSubjectActivity");
-                        Field mInstance = DoHomeWorkSubjectActivity.getDeclaredField("dao");
-                        Field examStudentId = DoHomeWorkSubjectActivity.getDeclaredField("examStudentId");
-                        Field testId = DoHomeWorkSubjectActivity.getDeclaredField("testId");
-                        examStudentId.setAccessible(true);
-                        testId.setAccessible(true);
-                        mInstance.setAccessible(true);
+                        Field field_dao_DoHomeWorkSubjectActivity = DoHomeWorkSubjectActivity.getDeclaredField("dao");
+                        field_dao_DoHomeWorkSubjectActivity.setAccessible(true);
+                        Field dohomework_examStudentId = DoHomeWorkSubjectActivity.getDeclaredField("examStudentId");
+                        dohomework_examStudentId.setAccessible(true);
+                        Field dohomework_testId = DoHomeWorkSubjectActivity.getDeclaredField("testId");
+                        dohomework_testId.setAccessible(true);
+                        Class<?> ExamRespondActivity = classLoader.loadClass("com.leimingtech.exam_android.activity.ExamRespondActivity");
+                        Field field_dao_ExamRespondActivity = ExamRespondActivity.getDeclaredField("dao");
+                        field_dao_ExamRespondActivity.setAccessible(true);
+                        Field ExamRespondActivity_examStudentId = DoHomeWorkSubjectActivity.getDeclaredField("examStudentId");//考试界面只有这个字段备用
                         //这里又要反射获取aplication的实例
                         List<Activity> activityInstances = getActivityInstances();
                         AtomicReference<Activity> activity1 = new AtomicReference<>();
-                        activityInstances.forEach(activity -> {
-                           if (activity.getClass().getName().equals("com.leimingtech.exam_android.activity.DoHomeWorkSubjectActivity")){
+                        activityInstances.forEach(activity -> {//一个是作业页面, 一个是考试页面, 2025年5月20日
+                           if (activity.getClass().getName().equals("com.leimingtech.exam_android.activity.DoHomeWorkSubjectActivity")
+                                   ||activity.getClass().getName().equals("com.leimingtech.exam_android.activity.ExamRespondActivity")){
                                activity1.set(activity);
                            }
                         });
                         if (activity1.get() == null) {
                             Log.d("Hooker", "doOnce: 并没有找到Activity类的实例");
+                            Toast.makeText(context, "如果你看到了这条消息,说明hook已生效, 请进入答题界面,长按空白处2秒后, 即可复制全部题目到系统剪贴板", Toast.LENGTH_SHORT).show();
                             return;
                         }
                         Activity activity = activity1.get();
-                        //获取实例的dao
-                        Object dao = mInstance.get(activity);
-                        String examStudentID = (String) examStudentId.get(activity);
-                        String testID = (String) testId.get(activity);
-                        //调用dao的findall方法
-                        Method method = SubjectService.getDeclaredMethod("findAll",String.class);
-                        method.setAccessible(true);
-                        mInstance.setAccessible(true);
-                        if (dao==null){
-                            Toast.makeText(context, "未获取到dao实例字段", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        ids.put(testID,0);
-                        ids.put(examStudentID,1);
-                        Set<String> strings = ids.keySet();
-                        for (String string : strings) {//string 是数据库键
-                            Object invoke = method.invoke(dao, string);
-                            JSONArray jsonArray = JSONArray.from(invoke);
-                            if (!(jsonArray.size()>0))continue;
-                            StringBuilder builder = new StringBuilder();
-                            for (int i = 0; i < jsonArray.size(); i++) {
-                                if (invoke == null){
-                                    //说明当前容器已经空啦
-                                    Log.d("Hooker", "doOnce: 主动调用结果: invoke:["+i+"] 没有找到");
-                                }else{
-                                    T t = new T((JSONObject) jsonArray.get(i));
-                                    builder.append(i+". ").append(t).append("\n");
-                                    Log.d("Hooker", t.toString());
-                                }
+                        //需要在这里判断一下当前进入的activity
+                        if (activity.getClass().getName().equals("com.leimingtech.exam_android.activity.DoHomeWorkSubjectActivity")) {
+                            //普通作业界面的处理规则
+                            //获取实例的dao
+                            Object dao = field_dao_DoHomeWorkSubjectActivity.get(activity);
+                            String examStudentID = (String) dohomework_examStudentId.get(activity);
+                            String testID = (String) dohomework_testId.get(activity);
+                            //调用dao的findall方法
+                            Method method = SubjectService.getDeclaredMethod("findAll",String.class);
+                            method.setAccessible(true);
+                            field_dao_DoHomeWorkSubjectActivity.setAccessible(true);
+                            if (dao==null){
+                                Toast.makeText(context, "未获取到dao实例字段", Toast.LENGTH_SHORT).show();
+                                return;
                             }
-                            ClipboardManager systemService = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
-                            ClipData clip = ClipData.newPlainText("mmi", builder.toString());
-                            systemService.setPrimaryClip(clip);
+                            ids.put(testID,0);
+                            ids.put(examStudentID,1);
+                            Set<String> strings = ids.keySet();
+                            for (String string : strings) {//string 是数据库键
+                                Object invoke = method.invoke(dao, string);
+                                JSONArray jsonArray = JSONArray.from(invoke);
+                                if (!(jsonArray.size()>0))continue;
+                                StringBuilder builder = new StringBuilder();
+                                for (int i = 0; i < jsonArray.size(); i++) {
+                                    if (invoke == null){
+                                        //说明当前容器已经空啦
+                                        Log.d("Hooker", "doOnce: 主动调用结果: invoke:["+i+"] 没有找到");
+                                    }else{
+                                        T t = new T((JSONObject) jsonArray.get(i));
+                                        builder.append((i+1)+". ").append(t).append("\n");
+                                        Log.d("Hooker", t.toString());
+                                    }
+                                }
+                                ClipboardManager systemService = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                                ClipData clip = ClipData.newPlainText("mmi", builder.toString());
+                                systemService.setPrimaryClip(clip);
+                            }
+                            Toast.makeText(context, "已复制全部题目", Toast.LENGTH_SHORT).show();
+                        }else {
+                            //考试界面的处理规则
+                            Object dao = field_dao_ExamRespondActivity.get(activity);
+                            String examStudentID = (String) ExamRespondActivity_examStudentId.get(activity);
+                            //调用dao的findall方法
+                            Method method = SubjectService.getDeclaredMethod("findAll",String.class);
+                            method.setAccessible(true);
+                            field_dao_ExamRespondActivity.setAccessible(true);
+                            if (dao==null){
+                                Toast.makeText(context, "未获取到dao实例字段", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            ids.put(examStudentID,1);
+                            Set<String> strings = ids.keySet();
+                            for (String string : strings) {//string 是数据库键
+                                Object invoke = method.invoke(dao, string);
+                                JSONArray jsonArray = JSONArray.from(invoke);
+                                if (!(jsonArray.size()>0))continue;
+                                StringBuilder builder = new StringBuilder();
+                                for (int i = 0; i < jsonArray.size(); i++) {
+                                    if (invoke == null){
+                                        //说明当前容器已经空啦
+                                        Log.d("Hooker", "doOnce: 主动调用结果: invoke:["+i+"] 没有找到");
+                                    }else{
+                                        T t = new T((JSONObject) jsonArray.get(i));
+                                        builder.append((i+1)+". ").append(t).append("\n");
+                                        Log.d("Hooker", t.toString());
+                                    }
+                                }
+                                ClipboardManager systemService = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                                ClipData clip = ClipData.newPlainText("mmi", builder.toString());
+                                systemService.setPrimaryClip(clip);
+                            }
+                            Toast.makeText(context, "已复制全部题目", Toast.LENGTH_SHORT).show();
                         }
+
                     }
                 }
         }

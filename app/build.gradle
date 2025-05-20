@@ -33,6 +33,7 @@ dependencies {
     // https://mvnrepository.com/artifact/de.robv.android.xposed/api
     compileOnly fileTree(include: ['*.jar'], dir: 'libs')
     compileOnly 'de.robv.android.xposed:api:82'
+    implementation(project(":hookutils"))
     //noinspection UseTomlInstead
     implementation 'com.alibaba.fastjson2:fastjson2:2.0.57'
 //    compileOnly files("C:\\Users\\daily\\MyFile\\code\\third_part_libraries\\xposed_api_82.jar")
