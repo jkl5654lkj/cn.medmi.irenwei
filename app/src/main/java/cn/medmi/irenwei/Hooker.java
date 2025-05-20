@@ -303,6 +303,7 @@ public class Hooker implements IXposedHookLoadPackage {
             String option = "";
             StringBuilder stringBuilder = new StringBuilder();
             switch (questionModelName){
+                case "X":
                 case "A1":
                 case "A2"://a1a2关键数据结构一致
                     question = ThreeDESUtil.decrypt3DES(name);
