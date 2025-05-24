@@ -113,7 +113,7 @@ public class Hooker implements IXposedHookLoadPackage {
                 //检测长按手势
                 MotionEvent action = (MotionEvent) param.args[0];
                 //这个才是重点关注对象
-                if (param.thisObject.getClass().getName().equals("com.leimingtech.exam_android.view.ExamRelativeLayout")||param.thisObject.getClass().getName().equals("android.widget.RelativeLayout")) {
+                if (param.thisObject.getClass().getName().equals("com.leimingtech.exam_android.view.ExamRelativeLayout")||param.thisObject.getClass().getName().equals("android.widget.RelativeLayout")||param.thisObject.getClass().getName().equals("android.widget.LinearLayout")) {
                     doOnce(classLoader,param, action);
                 }
             }
@@ -187,22 +187,24 @@ public class Hooker implements IXposedHookLoadPackage {
                         Class<?> ExamRespondActivity = classLoader.loadClass("com.leimingtech.exam_android.activity.ExamRespondActivity");
                         Field field_dao_ExamRespondActivity = ExamRespondActivity.getDeclaredField("dao");
                         field_dao_ExamRespondActivity.setAccessible(true);
-                        Field ExamRespondActivity_examStudentId = DoHomeWorkSubjectActivity.getDeclaredField("examStudentId");//考试界面只有这个字段备用
+                        Field ExamRespondActivity_examStudentId = ExamRespondActivity.getDeclaredField("examStudentId");//考试界面只有这个字段备用
+                        ExamRespondActivity_examStudentId.setAccessible(true);
                         //这里又要反射获取aplication的实例
                         List<Activity> activityInstances = getActivityInstances();
-                        AtomicReference<Activity> activity1 = new AtomicReference<>();
+                        AtomicReference<Activity> atomicReference = new AtomicReference<>();
                         activityInstances.forEach(activity -> {//一个是作业页面, 一个是考试页面, 2025年5月20日
                            if (activity.getClass().getName().equals("com.leimingtech.exam_android.activity.DoHomeWorkSubjectActivity")
                                    ||activity.getClass().getName().equals("com.leimingtech.exam_android.activity.ExamRespondActivity")){
-                               activity1.set(activity);
+                               atomicReference.set(activity);
                            }
                         });
-                        if (activity1.get() == null) {
+                        if (atomicReference.get() == null) {
                             Log.d("Hooker", "doOnce: 并没有找到Activity类的实例");
                             Toast.makeText(context, "如果你看到了这条消息,说明hook已生效, 请进入答题界面,长按空白处2秒后, 即可复制全部题目到系统剪贴板", Toast.LENGTH_SHORT).show();
                             return;
                         }
-                        Activity activity = activity1.get();
+                        Activity activity = atomicReference.get();
+                        Log.d("Hooker", "doOnce确认触发代码: "+activity.getClass().getName());
                         //需要在这里判断一下当前进入的activity
                         if (activity.getClass().getName().equals("com.leimingtech.exam_android.activity.DoHomeWorkSubjectActivity")) {
                             //普通作业界面的处理规则
@@ -242,7 +244,6 @@ public class Hooker implements IXposedHookLoadPackage {
                             }
                             Toast.makeText(context, "已复制全部题目", Toast.LENGTH_SHORT).show();
                         }else {
-                            //考试界面的处理规则
                             Object dao = field_dao_ExamRespondActivity.get(activity);
                             String examStudentID = (String) ExamRespondActivity_examStudentId.get(activity);
                             //调用dao的findall方法

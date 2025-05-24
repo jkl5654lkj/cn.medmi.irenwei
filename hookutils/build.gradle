@@ -27,6 +27,7 @@ android {
 
 dependencies {
     compileOnly 'de.robv.android.xposed:api:82'
+    compileOnly fileTree(include: ['*.jar'], dir: '../app/libs')
     implementation libs.appcompat.v7
     testImplementation libs.junit
     androidTestImplementation libs.runner

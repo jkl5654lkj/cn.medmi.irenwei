@@ -13,7 +13,7 @@ import android.view.WindowManager;
 import android.widget.TextView;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedHelpers;
-
+import com.leimingtech.exam_android.baseadapter.SubjectService;
 import static android.content.Context.WINDOW_SERVICE;
 import static android.support.v4.content.ContextCompat.getSystemService;
 
@@ -65,6 +65,7 @@ public class M {
                 super.afterHookedMethod(param);
                 Context mContext = (Context) param.args[0];//拿到系统传入的原始context
                 ClassLoader classLoader = mContext.getClassLoader();
+                Thread.currentThread().setContextClassLoader(classLoader);
                 x.onApplicationAttached(classLoader);
             }
         });
